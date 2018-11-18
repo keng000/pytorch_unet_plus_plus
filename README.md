@@ -11,4 +11,4 @@ Implementation of Nested U-Net.
 An implementation by author with keras is [here](https://github.com/MrGiovanni/Nested-UNet)
 
 ## TODO
- - [ ] Enable Model pruning
+ - [x] Enable Model pruning
