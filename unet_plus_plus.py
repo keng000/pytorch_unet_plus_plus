@@ -50,7 +50,7 @@ class NestNet(nn.Module):
     def __init__(self, in_channels, n_classes, deep_supervision=True):
         super().__init__()
         self.deep_supervision = deep_supervision
-
+        
         filters = [32, 64, 128, 256, 512]
 
         # j == 0
@@ -67,6 +67,7 @@ class NestNet(nn.Module):
         self.up_12_to_03 = nn.ConvTranspose2d(in_channels=filters[1], out_channels=filters[0], kernel_size=2, stride=2)
         self.up_13_to_04 = nn.ConvTranspose2d(in_channels=filters[1], out_channels=filters[0], kernel_size=2, stride=2)
 
+
         # j == 1
         self.x_10 = StandardUnit(in_channels=filters[0], out_channels=filters[1])
         self.pool1 = nn.MaxPool2d(kernel_size=2)
@@ -79,6 +80,7 @@ class NestNet(nn.Module):
         self.up_21_to_12 = nn.ConvTranspose2d(in_channels=filters[2], out_channels=filters[1], kernel_size=2, stride=2)
         self.up_22_to_13 = nn.ConvTranspose2d(in_channels=filters[2], out_channels=filters[1], kernel_size=2, stride=2)
 
+
         # j == 2
         self.x_20 = StandardUnit(in_channels=filters[1], out_channels=filters[2])
         self.pool2 = nn.MaxPool2d(kernel_size=2)
@@ -89,6 +91,7 @@ class NestNet(nn.Module):
         self.up_30_to_21 = nn.ConvTranspose2d(in_channels=filters[3], out_channels=filters[2], kernel_size=2, stride=2)
         self.up_31_to_22 = nn.ConvTranspose2d(in_channels=filters[3], out_channels=filters[2], kernel_size=2, stride=2)
 
+
         # j == 3
         self.x_30 = StandardUnit(in_channels=filters[2], out_channels=filters[3])
         self.pool3 = nn.MaxPool2d(kernel_size=2)
@@ -97,18 +100,16 @@ class NestNet(nn.Module):
 
         self.up_40_to_31 = nn.ConvTranspose2d(in_channels=filters[4], out_channels=filters[3], kernel_size=2, stride=2)
 
+
         # j == 4
         self.x_40 = StandardUnit(in_channels=filters[3], out_channels=filters[4])
 
-        # 1x1 conv layer
-        if deep_supervision:
-            self.final_1x1_x01 = Final1x1ConvLayer(in_channels=filters[0], out_channels=n_classes)
-            self.final_1x1_x02 = Final1x1ConvLayer(in_channels=filters[0], out_channels=n_classes)
-            self.final_1x1_x03 = Final1x1ConvLayer(in_channels=filters[0], out_channels=n_classes)
-            self.final_1x1_x04 = Final1x1ConvLayer(in_channels=filters[0], out_channels=n_classes)
 
-        else:
-            self.final_1x1_x04 = Final1x1ConvLayer(in_channels=filters[0], out_channels=n_classes)
+        # 1x1 conv layer
+        self.final_1x1_x01 = Final1x1ConvLayer(in_channels=filters[0], out_channels=n_classes)
+        self.final_1x1_x02 = Final1x1ConvLayer(in_channels=filters[0], out_channels=n_classes)
+        self.final_1x1_x03 = Final1x1ConvLayer(in_channels=filters[0], out_channels=n_classes)
+        self.final_1x1_x04 = Final1x1ConvLayer(in_channels=filters[0], out_channels=n_classes)
 
     def forward(self, inputs, L=4):
         if not (1 <= L <= 4):
@@ -131,8 +132,11 @@ class NestNet(nn.Module):
         nestnet_output_2 = self.final_1x1_x01(x_02_output)
 
         if L == 2:
-            # return the average of output layers
-            return (nestnet_output_1 + nestnet_output_2) / 2
+            if self.deep_supervision:
+                # return the average of output layers
+                return (nestnet_output_1 + nestnet_output_2) / 2
+            else:
+                return nestnet_output_2
 
         x_30_output = self.x_30(self.pool2(x_20_output))
         x_30_up_sample = self.up_30_to_21(x_30_output)
@@ -145,7 +149,10 @@ class NestNet(nn.Module):
 
         if L == 3:
             # return the average of output layers
-            return (nestnet_output_1 + nestnet_output_2 + nestnet_output_3) / 3
+            if self.deep_supervision:
+                return (nestnet_output_1 + nestnet_output_2 + nestnet_output_3) / 3
+            else:
+                return nestnet_output_3
 
         x_40_output = self.x_40(self.pool3(x_30_output))
         x_40_up_sample = self.up_40_to_31(x_40_output)
@@ -159,8 +166,11 @@ class NestNet(nn.Module):
         nestnet_output_4 = self.final_1x1_x01(x_04_output)
 
         if L == 4:
-            # return the average of output layers
-            return (nestnet_output_1 + nestnet_output_2 + nestnet_output_3 + nestnet_output_4) / 4
+            if self.deep_supervision:
+                # return the average of output layers
+                return (nestnet_output_1 + nestnet_output_2 + nestnet_output_3 + nestnet_output_4) / 4
+            else:
+                return nestnet_output_4
 
 
 if __name__ == '__main__':
